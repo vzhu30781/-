@@ -11,9 +11,10 @@ import { INITIAL_CHARACTERS, BITFEN_HIERARCHY, STATIC_MEMORIALS } from "../data"
 interface MainGameProps {
   initialPlayerName: string;
   initialEraName: string;
+  initialStats?: PlayerStats | null;
 }
 
-export default function MainGame({ initialPlayerName, initialEraName }: MainGameProps) {
+export default function MainGame({ initialPlayerName, initialEraName, initialStats }: MainGameProps) {
   // --- Game States ---
   const [player, setPlayer] = useState<PlayerStats>(() => {
     const saved = localStorage.getItem("lanyanhoshui_player");
@@ -21,11 +22,11 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
     return {
       name: initialPlayerName,
       eraName: initialEraName,
-      health: 95,
-      treasury: 250000,
-      authority: 80,
-      prestige: 75,
-      stability: 85,
+      health: initialStats?.health ?? 95,
+      treasury: initialStats?.treasury ?? 250000,
+      authority: initialStats?.authority ?? 80,
+      prestige: initialStats?.prestige ?? 75,
+      stability: initialStats?.stability ?? 85,
       year: 1,
       month: 1
     };
@@ -60,6 +61,53 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
 
   const [activeTab, setActiveTab] = useState<"harem" | "court" | "nursery" | "chronicle" | "sandbox">("harem");
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+
+  // Derive the active character to prevent stale detailed panel update bugs
+  const activeChar = selectedCharacter
+    ? (characters.find(c => c.id === selectedCharacter.id) || selectedCharacter)
+    : null;
+
+  // --- Archive & Save Slots States ---
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [slotsData, setSlotsData] = useState<Record<string, any>>({
+    slot_1: localStorage.getItem("lanyanhoshui_save_slot_1") ? JSON.parse(localStorage.getItem("lanyanhoshui_save_slot_1")!) : null,
+    slot_2: localStorage.getItem("lanyanhoshui_save_slot_2") ? JSON.parse(localStorage.getItem("lanyanhoshui_save_slot_2")!) : null,
+    slot_3: localStorage.getItem("lanyanhoshui_save_slot_3") ? JSON.parse(localStorage.getItem("lanyanhoshui_save_slot_3")!) : null,
+  });
+
+  const handleSaveToSlot = (slotKey: string) => {
+    const saveData = {
+      player,
+      characters,
+      children,
+      storyLogs,
+      timestamp: new Date().toLocaleString("zh-CN", { hour12: false })
+    };
+    localStorage.setItem(`lanyanhoshui_save_${slotKey}`, JSON.stringify(saveData));
+    setSlotsData(prev => ({ ...prev, [slotKey]: saveData }));
+  };
+
+  const handleLoadFromSlot = (slotKey: string) => {
+    const saved = slotsData[slotKey];
+    if (!saved) return;
+    setPlayer(saved.player);
+    setCharacters(saved.characters);
+    setChildren(saved.children);
+    setStoryLogs(saved.storyLogs);
+    setShowArchiveModal(false);
+    setSelectedCharacter(null);
+    setActionOutput(null);
+  };
+
+  const handleResetGame = () => {
+    if (window.confirm("陛下当真要‘乾坤重洗’，清空当前大内所有卷册，重新御极历劫么？（存档金册的数据不会被清空）")) {
+      localStorage.removeItem("lanyanhoshui_player");
+      localStorage.removeItem("lanyanhoshui_characters");
+      localStorage.removeItem("lanyanhoshui_children");
+      localStorage.removeItem("lanyanhoshui_logs");
+      window.location.reload();
+    }
+  };
 
   // --- Modal & Action States ---
   const [customInput, setCustomInput] = useState("");
@@ -595,6 +643,15 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
               </div>
             </div>
 
+            {/* Download/Upload archive trigger */}
+            <button
+              onClick={() => setShowArchiveModal(true)}
+              className="py-2 px-4 bg-black border border-[#c4a052]/45 text-[#c4a052] hover:text-[#e0d7cc] text-xs tracking-widest uppercase font-bold transition duration-200 rounded-sm shadow-md flex items-center gap-1.5 cursor-pointer hover:bg-[#c4a052]/15"
+            >
+              <Bookmark className="w-3.5 h-3.5 text-[#c4a052]" />
+              金史秘宗
+            </button>
+
             {/* Down to next month trigger */}
             <button
               id="progress-next-month-button"
@@ -630,7 +687,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
             <Shield className="w-4 h-4" />
             勤政明堂 (奏折御断)
           </button>
- 
+
           <button
             onClick={() => { setActiveTab("nursery"); setActionOutput(null); }}
             className={`py-3.5 px-5 text-xs text-nowrap md:text-sm tracking-widest font-serif font-bold transition-all flex items-center gap-2 border-b-2 ${
@@ -640,7 +697,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
             <Baby className="w-4 h-4" />
             诞育皇子 ({children.length})
           </button>
- 
+
           <button
             onClick={() => { setActiveTab("chronicle"); setActionOutput(null); }}
             className={`py-3.5 px-5 text-xs text-nowrap md:text-sm tracking-widest font-serif font-bold transition-all flex items-center gap-2 border-b-2 ${
@@ -650,7 +707,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
             <BookOpen className="w-4 h-4" />
             大晟起居注
           </button>
- 
+
           <button
             onClick={() => { setActiveTab("sandbox"); setActionOutput(null); }}
             className={`py-3.5 px-5 text-xs text-nowrap md:text-sm tracking-widest font-serif font-bold transition-all flex items-center gap-2 border-b-2 ${
@@ -662,7 +719,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
           </button>
         </div>
       </div>
- 
+
       {/* Principal Container Page Body */}
       <main className="max-w-7xl mx-auto w-full px-6 mt-8 flex-1 z-10 relative">
         {activeTab === "harem" && (
@@ -676,7 +733,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                 </h3>
                 <span className="text-[10px] text-[#e0d7cc]/50 tracking-widest uppercase">BLOSSOMS OF THE EMPIRE</span>
               </div>
- 
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {characters.map(char => (
                   <div
@@ -692,7 +749,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                         🤰 孕胎({char.pregnantProgress * 10}%)
                       </div>
                     )}
- 
+
                     <div>
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -705,12 +762,12 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                           <span className="text-[10px] text-[#e0d7cc]/40 italic mt-1 block tracking-wider">[原位: {char.originalBitfen}]</span>
                         </div>
                       </div>
- 
+
                       <p className="text-xs text-[#e0d7cc]/70 line-clamp-2 leading-relaxed mb-3 font-serif">
                         {char.intro}
                       </p>
                     </div>
- 
+
                     <div className="border-t border-[#c4a052]/20 pt-3 flex justify-between items-center text-[11px] text-[#e0d7cc]/60 font-sans tracking-wide">
                       <span className="flex items-center gap-1">
                         <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500/20" />
@@ -729,58 +786,58 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                 ))}
               </div>
             </div>
- 
+
             {/* Right side individual panel control */}
             <div className="lg:col-span-1">
-              {selectedCharacter ? (
-                <div className="bg-black/80 border border-[#c4a052]/30 rounded-sm p-6 sticky top-28 shadow-2xl space-y-5">
+              {activeChar ? (
+                <div className="bg-black/80 border border-[#c4a052]/30 rounded-sm p-6 sticky top-28 shadow-2xl space-y-5 shadow-[#5c1a1a]/5">
                   {/* Detailed summary info card */}
                   <div className="text-center pb-4 border-b border-[#c4a052]/20">
-                    <span className="text-[10px] text-[#c4a052] font-mono uppercase tracking-[0.2em]">{selectedCharacter.bitfen} · 金画卷册</span>
+                    <span className="text-[10px] text-[#c4a052] font-mono uppercase tracking-[0.2em]">{activeChar.bitfen} · 金画卷册</span>
                     <h3 className="text-xl font-serif text-[#e0d7cc] tracking-widest flex items-center justify-center gap-2 mt-2 font-semibold">
-                      {selectedCharacter.name}
+                      {activeChar.name}
                     </h3>
                     <p className="text-xs text-[#e0d7cc]/60 italic mt-2 px-3 leading-relaxed">
-                      “{selectedCharacter.personality}”
+                      “{activeChar.personality}”
                     </p>
                   </div>
- 
+
                   {/* Character stats bar checklist */}
                   <div className="space-y-4 text-xs font-serif">
                     <div>
                       <div className="flex justify-between text-[#e0d7cc]/80 mb-1 tracking-wide">
                         <span>君印好感 (情深如斯)</span>
-                        <span className="text-[#c4a052] font-semibold">{selectedCharacter.affection}/100</span>
+                        <span className="text-[#c4a052] font-semibold">{activeChar.affection}/100</span>
                       </div>
                       <div className="w-full bg-[#0a0a0b] h-1.5 rounded-full overflow-hidden border border-[#c4a052]/20">
-                        <div className="bg-gradient-to-r from-[#5c1a1a] to-[#c4a052] h-full transition-all duration-300" style={{ width: `${selectedCharacter.affection}%` }} />
+                        <div className="bg-gradient-to-r from-[#5c1a1a] to-[#c4a052] h-full transition-all duration-300" style={{ width: `${activeChar.affection}%` }} />
                       </div>
                     </div>
- 
+
                     <div>
                       <div className="flex justify-between text-[#e0d7cc]/80 mb-1 tracking-wide">
                         <span>龙裔蕴育 (身段受盈)</span>
-                        <span className="text-green-400 font-semibold">{selectedCharacter.health}/100</span>
+                        <span className="text-green-400 font-semibold">{activeChar.health}/100</span>
                       </div>
                       <div className="w-full bg-[#0a0a0b] h-1.5 rounded-full overflow-hidden border border-[#c4a052]/20">
-                        <div className="bg-emerald-600 h-full transition-all duration-300" style={{ width: `${selectedCharacter.health}%` }} />
+                        <div className="bg-emerald-600 h-full transition-all duration-300" style={{ width: `${activeChar.health}%` }} />
                       </div>
                     </div>
- 
+
                     <div className="p-4 bg-black/40 rounded-sm border border-[#c4a052]/10 space-y-1.5">
                       <p className="text-[11px] text-[#c4a052] font-mono tracking-widest font-semibold">世家背景记略：</p>
                       <p className="text-[11px] text-[#e0d7cc]/80 leading-relaxed text-justify indent-4">
-                        {selectedCharacter.background}
+                        {activeChar.background}
                       </p>
                     </div>
- 
-                    {selectedCharacter.isPregnant && (
-                      <div className="p-3 bg-[#5c1a1a]/10 rounded-sm border border-[#c4a052]/20 text-xs text-[#c4a052]/90 flex items-start gap-2">
+
+                    {activeChar.isPregnant && (
+                      <div className="p-3 bg-[#5c1a1a]/10 rounded-sm border border-[#c4a052]/20 text-xs text-[#c4a052]/90 flex items-start gap-2 animate-pulse">
                         <AlertCircle className="w-4 h-4 text-[#c4a052] flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="font-semibold text-[11px] text-[#e0d7cc]">男儿身御胎怀喜中</p>
                           <p className="text-[10px] leading-relaxed text-[#e0d7cc]/70 mt-1">
-                            已历胎熟期 ({selectedCharacter.pregnantProgress * 10}%)。每一月乾坤更替，胎元渐长。达到 100% 时，将传诏诞下大晟尊贵皇嗣。
+                            已历胎熟期 ({activeChar.pregnantProgress * 10}%)。每一月乾坤更替，胎元渐长。达到 100% 时，将传诏诞下大晟尊贵皇嗣。
                           </p>
                         </div>
                       </div>
@@ -795,30 +852,30 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                     <textarea
                       rows={2}
                       maxLength={100}
-                      className="w-full bg-black/60 border border-[#c4a052]/30 text-[#e0d7cc] p-3 text-xs rounded-sm focus:outline-none focus:border-[#c4a052] transition placeholder-zinc-600 font-serif leading-relaxed"
+                      className="w-full bg-black/60 border border-[#c4a052]/30 text-[#e0d7cc] p-3 text-xs rounded-sm focus:outline-none focus:border-[#c4a052] transition placeholder-zinc-650 font-serif leading-relaxed"
                       placeholder="陛下今夜临御，要对他交代甚么床榻温存言辞？（选填，100字内）"
                       value={customInput}
                       onChange={(e) => setCustomInput(e.target.value)}
                     />
- 
+
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => handleSummon(selectedCharacter)}
+                        onClick={() => handleSummon(activeChar)}
                         disabled={isSubmitting}
-                        className="py-2.5 px-3 bg-[#5c1a1a] text-[#c4a052] text-xs tracking-widest font-bold uppercase hover:bg-red-950 hover:text-[#e0d7cc] transition duration-200 disabled:opacity-40 rounded-sm cursor-pointer border border-[#c4a052]/30"
+                        className="py-2.5 px-3 bg-[#5c1a1a] text-[#c4a052] text-xs tracking-widest font-bold uppercase hover:bg-red-955 hover:text-[#e0d7cc] transition duration-200 disabled:opacity-40 rounded-sm cursor-pointer border border-[#c4a052]/30 text-center"
                       >
                         翻牌侍寝
                       </button>
- 
+
                       <button
-                        onClick={() => handleChat(selectedCharacter)}
+                        onClick={() => handleChat(activeChar)}
                         disabled={isSubmitting}
-                        className="py-2.5 px-3 bg-black/60 hover:bg-[#c4a052]/10 border border-[#c4a052]/30 text-[#e0d7cc] text-xs tracking-widest uppercase rounded-sm transition duration-200 disabled:opacity-40 cursor-pointer"
+                        className="py-2.5 px-3 bg-black/60 hover:bg-[#c4a052]/10 border border-[#c4a052]/30 text-[#e0d7cc] text-xs tracking-widest uppercase rounded-sm transition duration-200 disabled:opacity-40 cursor-pointer text-center"
                       >
                         传召闲聊
                       </button>
                     </div>
- 
+
                     {/* Other auxiliary actions: Promote and Gift */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative">
@@ -836,7 +893,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                             {BITFEN_HIERARCHY.map(rank => (
                               <button
                                 key={rank}
-                                onClick={() => handlePromote(selectedCharacter, rank)}
+                                onClick={() => handlePromote(activeChar, rank)}
                                 className="w-full text-left px-4 py-2 bg-black text-[#e0d7cc] hover:bg-[#c4a052]/20 hover:text-[#c4a052] border-b border-[#c4a052]/10 transition"
                               >
                                 册封【{rank}】
@@ -845,10 +902,10 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                           </div>
                         )}
                       </div>
- 
+
                       {/* Gift actions */}
                       <button
-                        onClick={() => handleGift(selectedCharacter, "上等长白山老山参及蜀锦")}
+                        onClick={() => handleGift(activeChar, "上等长白山老山参及蜀锦")}
                         disabled={isSubmitting}
                         className="py-2.5 px-3 bg-black/60 hover:bg-[#c4a052]/10 border border-[#c4a052]/30 text-[#e0d7cc] text-xs tracking-widest uppercase rounded-sm transition duration-200 flex items-center justify-center gap-1.5 disabled:opacity-40 cursor-pointer"
                       >
@@ -857,12 +914,12 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                       </button>
                     </div>
                   </div>
- 
+
                   {/* Relation history log checklist */}
                   <div className="pt-3 border-t border-[#c4a052]/20">
                     <span className="block text-[10px] text-[#c4a052] tracking-widest font-serif font-bold mb-1.5">君臣情爱恩宠录：</span>
                     <ul className="space-y-1.5 text-[10px] text-[#e0d7cc]/50 max-h-24 overflow-y-auto pr-1">
-                      {selectedCharacter.relationshipHistory.slice().reverse().map((hist, i) => (
+                      {activeChar.relationshipHistory.slice().reverse().map((hist, i) => (
                         <li key={i} className="leading-relaxed border-l border-[#c4a052]/30 pl-2 hover:text-[#e0d7cc] transition-colors font-serif">
                           {hist}
                         </li>
@@ -871,7 +928,7 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                   </div>
                 </div>
               ) : (
-                <div className="bg-black/60 border border-[#c4a052]/20 rounded-sm p-8 text-center space-y-4 sticky top-28">
+                <div className="bg-black/80 border border-[#c4a052]/30 rounded-sm p-8 text-center space-y-4 sticky top-28 shadow-xl">
                   <Coffee className="w-8 h-8 text-[#c4a052] mx-auto animate-pulse" />
                   <div>
                     <h4 className="text-sm text-[#c4a052] font-serif tracking-widest font-bold">御驾听政阁</h4>
@@ -1242,6 +1299,89 @@ export default function MainGame({ initialPlayerName, initialEraName }: MainGame
                     {isSubmitting ? "正在敕封金册大庆并通知礼部..." : "敕赐名册 · 喜贺皇子临世"}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Overlay Modal Component: IMPERIAL ARCHIVES SLOTS DIALOG --- */}
+      <AnimatePresence>
+        {showArchiveModal && (
+          <div className="fixed inset-0 bg-[#0a0a0b]/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-black border-2 border-[#c4a052]/40 max-w-2xl w-full p-6 md:p-8 rounded-sm text-[#e0d7cc] space-y-6 shadow-2xl relative"
+            >
+              <div className="text-center font-serif relative">
+                <span className="text-[10px] text-[#c4a052] font-mono tracking-[0.25em] block uppercase">大晟御极编年 · 秘阁金史</span>
+                <h3 className="text-xl text-[#e0d7cc] tracking-widest font-semibold mt-1">
+                  《起居注秘档·皇室金书简》
+                </h3>
+                <p className="text-xs text-[#e0d7cc]/50 mt-1">
+                  天意无极。陛下在此誊录朱章、重宣旧契、或重洗乾坤。
+                </p>
+                <div className="h-px bg-gradient-to-r from-transparent via-[#c4a052]/30 to-transparent my-3.5" />
+              </div>
+
+              <div className="space-y-4 font-serif">
+                {["slot_1", "slot_2", "slot_3"].map((key, index) => {
+                  const save = slotsData[key];
+                  const label = index === 0 ? "金书简 · 其一" : index === 1 ? "金书简 · 其二" : "金书简 · 其三";
+                  return (
+                    <div
+                      key={key}
+                      className="p-4 bg-black/60 border border-[#c4a052]/20 rounded-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-[#c4a052]/50 transition duration-200"
+                    >
+                      <div className="space-y-1">
+                        <h4 className="text-xs text-[#c4a052] font-bold tracking-widest">{label}</h4>
+                        {save ? (
+                          <div className="text-[11px] text-[#e0d7cc]/70 space-y-0.5 font-sans leading-relaxed">
+                            <p>年号世袭：<span className="text-[#e0d7cc] font-serif pr-2">{save.player.name} ({save.player.eraName} {save.player.year}年 {save.player.month}月)</span></p>
+                            <p>大内指标：<span className="text-[#e0d7cc]">安康:{save.player.health} | 库银:{save.player.treasury.toLocaleString()}两 | 国威:{save.player.authority} | 稳定:{save.player.stability}</span></p>
+                            <p className="text-[10px] text-[#c4a052]/80 italic font-mono">誊录时刻：{save.timestamp}</p>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-[#e0d7cc]/40 italic">暂无御笔墨迹 · 虚位留白</p>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0 font-sans text-[10px]">
+                        <button
+                          onClick={() => handleSaveToSlot(key)}
+                          className="flex-1 md:flex-none py-1.5 px-3 bg-black border border-[#c4a052]/30 hover:bg-[#c4a052]/10 text-[#c4a052] rounded-sm transition cursor-pointer"
+                        >
+                          御笔誊录 (存档)
+                        </button>
+                        {save && (
+                          <button
+                            onClick={() => handleLoadFromSlot(key)}
+                            className="flex-1 md:flex-none py-1.5 px-3 bg-[#c4a052] text-black font-bold hover:bg-[#d4b062] rounded-sm transition cursor-pointer"
+                          >
+                            奉诏载入 (读档)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-3 border-t border-[#c4a052]/20 flex justify-between items-center gap-4">
+                <button
+                  onClick={handleResetGame}
+                  className="py-2 px-4 border border-red-900 text-red-400 hover:bg-red-955/20 text-xs tracking-widest transition rounded-sm cursor-pointer"
+                >
+                  乾坤重洗 (重置新局)
+                </button>
+                <button
+                  onClick={() => setShowArchiveModal(false)}
+                  className="py-2 px-6 bg-black border border-[#c4a052]/30 hover:bg-[#c4a052]/10 text-xs text-[#e0d7cc] tracking-widest transition rounded-sm cursor-pointer"
+                >
+                  合上秘阁 · 圣驾起驾
+                </button>
               </div>
             </motion.div>
           </div>
