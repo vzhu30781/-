@@ -1,0 +1,6 @@
+{
+  "name": "蓝颜祸水",
+  "description": "全男后宫文游，饰演皇帝进行朝政决断、宠幸男妃、繁衍子嗣与后宫沉浸式互动。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
