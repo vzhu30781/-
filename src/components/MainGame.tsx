@@ -7,6 +7,14 @@ import {
 } from "lucide-react";
 import { Character, Child, PlayerStats, StoryLog, Memorial } from "../types";
 import { INITIAL_CHARACTERS, BITFEN_HIERARCHY, STATIC_MEMORIALS } from "../data";
+import {
+  getLocalSummonText,
+  getLocalChatText,
+  getLocalGiftText,
+  getLocalPromoteText,
+  getLocalBirthText,
+  getLocalStoryContinue
+} from "../utils/fallbackStory";
 
 interface MainGameProps {
   initialPlayerName: string;
@@ -234,53 +242,59 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
       playerStats: player
     };
 
+    const randomPregCheck = Math.random() * 100;
+    let isNowPregnant = false;
+    let updatedHistory = [...char.relationshipHistory];
+    let pregMsg = "";
+
+    // Check if character is not already pregnant and fits the fertility percentage
+    if (!char.isPregnant && randomPregCheck < char.fertility + 10) {
+      isNowPregnant = true;
+      pregMsg = `【天降麟喜】御医连夜按脉确诊：${char.name}（${char.bitfen}）承御龙泽已凝结胎元，已被确认为【身怀龙元】！请主上静候龙子诞生。`;
+      updatedHistory.push(`【${player.eraName}${player.year}年${player.month}月】：蒙帝宿雨露，喜报结珠孕育龙胎。`);
+    } else {
+      updatedHistory.push(`【${player.eraName}${player.year}年${player.month}月】：翻牌临幸，极乐侍宿，鱼水交融。`);
+    }
+
+    let storyText = "";
     try {
       const res = await fetch("/api/character-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataPayload)
       });
-      const data = await res.json();
-
-      // Update affection, trigger pregnancy chance
-      const randomPregCheck = Math.random() * 100;
-      let isNowPregnant = false;
-      let updatedHistory = [...char.relationshipHistory];
-      let pregMsg = "";
-
-      // Check if character is not already pregnant and fits the fertility percentage
-      if (!char.isPregnant && randomPregCheck < char.fertility + 10) {
-        isNowPregnant = true;
-        pregMsg = `【天降麟喜】御医连夜按脉确诊：${char.name}（${char.bitfen}）承御龙泽已凝结胎元，已被确认为【身怀龙元】！请主上静候龙子诞生。`;
-        updatedHistory.push(`【${player.eraName}${player.year}年${player.month}月】：蒙帝宿雨露，喜报结珠孕育龙胎。`);
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
       } else {
-        updatedHistory.push(`【${player.eraName}${player.year}年${player.month}月】：翻牌临幸，极乐侍宿，鱼水交融。`);
+        throw new Error("Server response not OK");
       }
-
-      setCharacters(prev => prev.map(c => {
-        if (c.id === char.id) {
-          return {
-            ...c,
-            affection: Math.min(100, c.affection + 12),
-            isPregnant: isNowPregnant ? true : c.isPregnant,
-            pregnantProgress: isNowPregnant ? 1 : c.pregnantProgress,
-            relationshipHistory: updatedHistory
-          };
-        }
-        return c;
-      }));
-
-      setActionOutput({
-        type: "summon",
-        title: `今夜 · 翻牌召幸【${char.name}】`,
-        text: data.text + (pregMsg ? `\n\n${pregMsg}` : "")
-      });
-
-      addLog(`帝王临幸龙榻`, `帝今夜翻牌【${char.name}】侍宿殿寝。${pregMsg || "鱼水缱绻，君妾恩爱笃深。"}`, "harem");
-      setCustomInput("");
     } catch (error) {
-      console.error(error);
+      console.warn("Falling back to local character storyteller for Summon...", error);
+      storyText = getLocalSummonText(char, customInput, player);
     }
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === char.id) {
+        return {
+          ...c,
+          affection: Math.min(100, c.affection + 12),
+          isPregnant: isNowPregnant ? true : c.isPregnant,
+          pregnantProgress: isNowPregnant ? 1 : c.pregnantProgress,
+          relationshipHistory: updatedHistory
+        };
+      }
+      return c;
+    }));
+
+    setActionOutput({
+      type: "summon",
+      title: `今夜 · 翻牌召幸【${char.name}】`,
+      text: storyText + (pregMsg ? `\n\n${pregMsg}` : "")
+    });
+
+    addLog(`帝王临幸龙榻`, `帝今夜翻牌【${char.name}】侍宿殿寝。${pregMsg || "鱼水缱绻，君妾恩爱笃深。"}`, "harem");
+    setCustomInput("");
     setIsSubmitting(false);
   };
 
@@ -296,36 +310,43 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
       playerStats: player
     };
 
+    let storyText = "";
     try {
       const res = await fetch("/api/character-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataPayload)
       });
-      const data = await res.json();
-
-      setCharacters(prev => prev.map(c => {
-        if (c.id === char.id) {
-          return {
-            ...c,
-            affection: Math.min(100, c.affection + 5),
-            relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：偏殿随性谈心闲叙。`]
-          };
-        }
-        return c;
-      }));
-
-      setActionOutput({
-        type: "chat",
-        title: `午后 · 与【${char.name}】并肩微闲聊`,
-        text: data.text
-      });
-
-      addLog(`偏殿闲叙雅谈`, `皇帝拉御前${char.name}于回廊抚琴漫谈古今。`, "harem");
-      setCustomInput("");
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
+      } else {
+        throw new Error("Server response not OK");
+      }
     } catch (error) {
-      console.error(error);
+      console.warn("Falling back to local character storyteller for Chat...", error);
+      storyText = getLocalChatText(char, customInput, player);
     }
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === char.id) {
+        return {
+          ...c,
+          affection: Math.min(100, c.affection + 5),
+          relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：偏殿随性谈心闲叙。`]
+        };
+      }
+      return c;
+    }));
+
+    setActionOutput({
+      type: "chat",
+      title: `午后 · 与【${char.name}】并肩微闲聊`,
+      text: storyText
+    });
+
+    addLog(`偏殿闲叙雅谈`, `皇帝拉御前${char.name}于回廊抚琴漫谈古今。`, "harem");
+    setCustomInput("");
     setIsSubmitting(false);
   };
 
@@ -348,37 +369,44 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
       playerStats: player
     };
 
-    try {
-      setPlayer(prev => ({ ...prev, treasury: prev.treasury - giftCost, prestige: Math.min(100, prev.prestige + 1) }));
+    setPlayer(prev => ({ ...prev, treasury: prev.treasury - giftCost, prestige: Math.min(100, prev.prestige + 1) }));
 
+    let storyText = "";
+    try {
       const res = await fetch("/api/character-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataPayload)
       });
-      const data = await res.json();
-
-      setCharacters(prev => prev.map(c => {
-        if (c.id === char.id) {
-          return {
-            ...c,
-            affection: Math.min(100, c.affection + 8),
-            relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：赐予奇玩 ${giftItem}。`]
-          };
-        }
-        return c;
-      }));
-
-      setActionOutput({
-        type: "gift",
-        title: `天子赏赐 · 【${char.name}】承恩接旨`,
-        text: data.text
-      });
-
-      addLog(`御赏重礼入寝`, `赏赐${char.name}：【${giftItem}】，削国库银八千两。`, "harem");
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
+      } else {
+        throw new Error("Server response not OK");
+      }
     } catch (error) {
-      console.error(error);
+      console.warn("Falling back to local character storyteller for Gift...", error);
+      storyText = getLocalGiftText(char, giftItem);
     }
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === char.id) {
+        return {
+          ...c,
+          affection: Math.min(100, c.affection + 8),
+          relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：赐予奇玩 ${giftItem}。`]
+        };
+      }
+      return c;
+    }));
+
+    setActionOutput({
+      type: "gift",
+      title: `天子赏赐 · 【${char.name}】承恩接旨`,
+      text: storyText
+    });
+
+    addLog(`御赏重礼入寝`, `赏赐${char.name}：【${giftItem}】，削国库银八千两。`, "harem");
     setIsSubmitting(false);
   };
 
@@ -396,36 +424,43 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
       playerStats: player
     };
 
+    let storyText = "";
     try {
       const res = await fetch("/api/character-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataPayload)
       });
-      const data = await res.json();
-
-      setCharacters(prev => prev.map(c => {
-        if (c.id === char.id) {
-          return {
-            ...c,
-            bitfen: targetBitfen,
-            affection: Math.min(100, c.affection + 15),
-            relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：明诏宣诏册封晋为【${targetBitfen}】。`]
-          };
-        }
-        return c;
-      }));
-
-      setActionOutput({
-        type: "promote",
-        title: `内务府大封明礼 · 【${char.name}】晋封昭明`,
-        text: data.text
-      });
-
-      addLog(`内廷大封金册`, `钦定${char.name}承印晋封【${targetBitfen}】，朝野共庆。`, "harem");
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
+      } else {
+        throw new Error("Server response not OK");
+      }
     } catch (e) {
-      console.error(e);
+      console.warn("Falling back to local character storyteller for Promote...", e);
+      storyText = getLocalPromoteText(char, char.bitfen, targetBitfen);
     }
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === char.id) {
+        return {
+          ...c,
+          bitfen: targetBitfen,
+          affection: Math.min(100, c.affection + 15),
+          relationshipHistory: [...c.relationshipHistory, `【${player.eraName}${player.year}年${player.month}月】：明诏宣诏册封晋为【${targetBitfen}】。`]
+        };
+      }
+      return c;
+    }));
+
+    setActionOutput({
+      type: "promote",
+      title: `内务府大封明礼 · 【${char.name}】晋封昭明`,
+      text: storyText
+    });
+
+    addLog(`内廷大封金册`, `钦定${char.name}承印晋封【${targetBitfen}】，朝野共庆。`, "harem");
     setIsSubmitting(false);
   };
 
@@ -445,50 +480,57 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
       playerStats: player
     };
 
+    let storyText = "";
     try {
       const res = await fetch("/api/character-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataPayload)
       });
-      const data = await res.json();
-
-      // Create prince object
-      const talentsList = ["孔孟之气 · 颖悟绝伦", "将帅豪胆 · 臂力清奇", "百工机巧 · 独具慧心", "王佐英贤 · 温润有容", "天心圣人 · 淡雅内秀"];
-      const randomTalent = talentsList[Math.floor(Math.random() * talentsList.length)];
-
-      const newPrince: Child = {
-        id: "prince_" + Date.now(),
-        name: babyName,
-        consortId: consort.id,
-        consortName: consort.name,
-        age: 1, // Start age at 1 year / month-old representation
-        birthMonth: player.month,
-        birthYear: player.year,
-        talent: randomTalent,
-        health: 88 + Math.floor(Math.random() * 12),
-        intelligence: 85 + Math.floor(Math.random() * 15)
-      };
-
-      setChildren(prev => [...prev, newPrince]);
-      setPlayer(prev => ({
-        ...prev,
-        stability: Math.min(100, prev.stability + 10),
-        prestige: Math.min(100, prev.prestige + 8)
-      }));
-
-      setActionOutput({
-        type: "birth",
-        title: `喜获嫡皇子 · 宗人府金册书名`,
-        text: `${data.text}\n\n【圣诏敕命】：赐【${consort.name}】之子名讳【${babyName}】，封【大晟皇子】，玉牒注其不世天赋：【${randomTalent}】。`
-      });
-
-      addLog(`大晟皇室喜添龙脉`, `喜讯！${consort.name}御榻平安生子诞下皇子，帝赐名【${babyName}】，赏赐六宫。`, "birth");
-      setPendingBirth(null);
-      setBabyName("");
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
+      } else {
+        throw new Error("Server response not OK");
+      }
     } catch (err) {
-      console.error(err);
+      console.warn("Falling back to local character storyteller for Birth...", err);
+      storyText = getLocalBirthText(consort, player);
     }
+
+    // Create prince object
+    const talentsList = ["孔孟之气 · 颖悟绝伦", "将帅豪胆 · 臂力清奇", "百工机巧 · 独具慧心", "王佐英贤 · 温润有容", "天心圣人 · 淡雅内秀"];
+    const randomTalent = talentsList[Math.floor(Math.random() * talentsList.length)];
+
+    const newPrince: Child = {
+      id: "prince_" + Date.now(),
+      name: babyName,
+      consortId: consort.id,
+      consortName: consort.name,
+      age: 1, // Start age at 1 year / month-old representation
+      birthMonth: player.month,
+      birthYear: player.year,
+      talent: randomTalent,
+      health: 88 + Math.floor(Math.random() * 12),
+      intelligence: 85 + Math.floor(Math.random() * 15)
+    };
+
+    setChildren(prev => [...prev, newPrince]);
+    setPlayer(prev => ({
+      ...prev,
+      stability: Math.min(100, prev.stability + 10),
+      prestige: Math.min(100, prev.prestige + 8)
+    }));
+
+    setActionOutput({
+      type: "birth",
+      title: `喜获嫡皇子 · 宗人府金册书名`,
+      text: `${storyText}\n\n【圣诏敕命】：赐【${consort.name}】之子名讳【${babyName}】，封【大晟皇子】，玉牒注其不世天赋：【${randomTalent}】。`
+    });
+
+    addLog(`大晟皇室喜添龙脉`, `喜讯！${consort.name}御榻平安生子诞下皇子，帝赐名【${babyName}】，赏赐六宫。`, "birth");
+    setPendingBirth(null);
+    setBabyName("");
     setIsSubmitting(false);
   };
 
@@ -545,6 +587,7 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
     if (!sandboxPrompt.trim()) return;
     setIsSubmitting(true);
 
+    let storyText = "";
     try {
       const res = await fetch("/api/story-continue", {
         method: "POST",
@@ -559,13 +602,56 @@ export default function MainGame({ initialPlayerName, initialEraName, initialSta
           }
         })
       });
-      const data = await res.json();
-      setSandboxStory(data.text);
-      setSandboxPrompt("");
+      if (res.ok) {
+        const data = await res.json();
+        storyText = data.text;
+      } else {
+        throw new Error("Server response not OK");
+      }
     } catch (e) {
-      console.error(e);
-      setSandboxStory(prev => prev + `\n\n（大内起居注：御前阁臣研墨手笔滞涩，未能通灵神旨。）`);
+      console.warn("Falling back to local story continuation teller for Sandbox...", e);
+      const data = getLocalStoryContinue(sandboxPrompt, {
+        treasury: player.treasury,
+        authority: player.authority,
+        year: player.year,
+        month: player.month
+      });
+      storyText = data.text;
+
+      // Parse selection to update states
+      const p = sandboxPrompt.toUpperCase();
+      if (p.includes("A") || p.includes("甲")) {
+        setPlayer(prev => ({
+          ...prev,
+          treasury: Math.max(0, prev.treasury - 10000),
+          stability: Math.min(100, prev.stability + 5),
+          health: Math.min(100, prev.health + 5)
+        }));
+        storyText = `【天意朱批：皇帝批红「准其甲项奏议」】\n\n` + storyText;
+        addLog("天书圣言批示", "陛下天意朱墨判下【甲】，大晟江山温润福泽，国本安稳。", "system");
+      } else if (p.includes("B") || p.includes("乙")) {
+        setPlayer(prev => ({
+          ...prev,
+          treasury: Math.max(0, prev.treasury - 30000),
+          prestige: Math.min(100, prev.prestige + 15),
+          authority: Math.min(100, prev.authority + 10)
+        }));
+        storyText = `【天意朱批：皇帝批红「准其乙项奏议」】\n\n` + storyText;
+        addLog("天书圣言批示", "陛下天意金字判下【乙】，厚赐赏礼，群臣并谢皇尊隆德。", "system");
+      } else if (p.includes("C") || p.includes("丙")) {
+        setPlayer(prev => ({
+          ...prev,
+          stability: Math.min(100, prev.stability + 10),
+          prestige: Math.min(100, prev.prestige + 5),
+          treasury: Math.min(500000, prev.treasury + 20000)
+        }));
+        storyText = `【天意朱批：皇帝批红「准其丙项奏议」】\n\n` + storyText;
+        addLog("天书圣言批示", "陛下天意判下【丙】，大晟朝风气一新，国库充裕社稷升稳。", "system");
+      }
     }
+
+    setSandboxStory(storyText);
+    setSandboxPrompt("");
     setIsSubmitting(false);
   };
 
