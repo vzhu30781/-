@@ -13,6 +13,7 @@ export default function Backstory({ onComplete }: BackstoryProps) {
   const [choiceMade, setChoiceMade] = useState<string | null>(null);
   const [storyResult, setStoryResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [activeMemoryCharId, setActiveMemoryCharId] = useState<string | null>(null);
 
   // Character Trait selection
   const [selectedTrait, setSelectedTrait] = useState("trait1");
@@ -23,6 +24,73 @@ export default function Backstory({ onComplete }: BackstoryProps) {
     prestige: 75,
     stability: 85,
   });
+
+  const OLD_CHARACTERS_MEMORIES = [
+    {
+      id: "nanjingyun",
+      name: "南璟云",
+      role: "暗卫首领",
+      scene: "登基前夜 · 屋脊雪战",
+      dialogue: "“主上……不要出来！有罪臣璟云在此，就算是拿这副骨架子去撞敌军的长枪，璟云也绝不让大阿哥的一卒半马越过您的书房殿槛……只要主上金安，璟云死亦甘之如饴。”",
+      narration: "夜深大雪如盖，黑铁重甲下，那温热猩红的血一滴滴在大晟太和门的金砖上腾起轻雾。他受重创十一处，仍紧抿薄唇，誓死不退，眼中只有您一人。"
+    },
+    {
+      id: "ganyanxu",
+      name: "甘言旭",
+      role: "大学士之子 / 贵人",
+      scene: "御书房 · 墨痕泣血",
+      dialogue: "“殿下，大皇子无德弑君，起兵造反！今日言旭纵然舍去学者清誉，拼尽九族性命，也必手执狼毫，为您草下清君侧之讨贼檄文！天下清流，俱在臣心。”",
+      narration: "秉烛执笔的手指因屈辱而轻颤，白衫微寒，墨痕淋漓。他本是傲物清高的士子名门，却在危机关头一纸定乾坤，字字泣血为您挽回文官大势。"
+    },
+    {
+      id: "xiaohexian",
+      name: "萧鹤贤",
+      role: "将门长子 / 正君",
+      scene: "宣德正门 · 枪影破晓",
+      dialogue: "“楚明熙！老子手里的这杆白银玄铁枪里有我萧氏三千将士的英魂！在本宫眼皮子底下，谁也别想抢走陛下的江山！今夜，大统领大营有进无退，杀！”",
+      narration: "金鼓骤起，他手握寒光凛冽的佩枪挡在朱红正门外，双目通红、咬碎钢牙。他生性暴烈醋海汹涛，却在最绝地，将萧氏大军所有的命运赌在了您的皇冠上。"
+    },
+    {
+      id: "xieyanhui",
+      name: "谢燕回",
+      role: "定国大将军 / 正君",
+      scene: "塞北急骑 · 连夜救驾",
+      dialogue: "“哈哈，皇上！朝中那群文臣骂臣目无王法、不守妾道？去他娘的！今夜若皇家叛党想要吞殿下的命，谢某就率雁门关外十万突厥铁骑，踏碎这金銮大殿！”",
+      narration: "班师救驾的战马发出高亢嘶鸣，战袍半卸，满腔野气。在风暴撕裂苍穹之时，他提着那柄浸过无数鲜血的重钢赤龙刃，狂傲高笑着为您在宫闱开出一条通天大道。"
+    },
+    {
+      id: "gushuyu",
+      name: "顾书煜",
+      role: "小家庶子 / 答应",
+      scene: "侧殿角隅 · 梨汤暖夜",
+      dialogue: "“殿下……煜儿笨得很，不晓得前殿那些打打杀杀的皇家政理……可煜儿在灶上给大爷炖了清火的梨汤，煜儿今夜就在这柱子后等主子。要是主子不在了，煜儿也不活了……”",
+      narration: "他蜷缩在偏殿冰冷的台基后，捏着旧香屑帕子吓得直流泪。虽卑微渺小，却对您有着最干净、如同初生葵瓣对狂风烈日那般，生死一同的柔弱痴恋。"
+    },
+    {
+      id: "zhunianxi",
+      name: "朱念熹",
+      role: "豪商世家 / 答应",
+      scene: "朱家商号 · 金元暗助",
+      dialogue: "“皇上……您可瞧见那大皇子的禁军校卫在看到白银时的狼狈蠢样？念熹连夜让江南商联运来了二百万巨洋！大管事，黄金买命，本公子可不爱做赔本账单，等您御极了，可要拿凤印赔我利息呢~”",
+      narration: "微歪的唇角带着勾魂的调笑，丹凤眼被红烛映得眼丝泛热。他巧手摇金扇，拿泼天白银在兵不血刃处，直接暗中收买崩溃了敌方叛军，优雅雍容地助您登基。"
+    },
+    {
+      id: "liumingche",
+      name: "柳明澈",
+      role: "药香清客 / 常在",
+      scene: "僻静冷宫 · 暗香迷魂",
+      dialogue: "“殿下……此乃‘龙息沉梦香’。臣已配完，微风吹折书房，今夜，乱反者当在暖烟极乐梦里悄然而逝，不起一刀半枪，亦不受黄沙之惊。”",
+      narration: "他的神情寂静如幽秘不语的木槿花，青灯昏黄，研磨捣毒的手极轻极稳。他性格孤高敏感，为了让陛下不留血痕登临天帝，竟偷偷调出夺命奇香，将万般罪孽背附于身。"
+    },
+    {
+      id: "minghen",
+      name: "明痕",
+      role: "毓国质子 / 官男子",
+      scene: "幽禁内所 · 亡国泪光",
+      dialogue: "“皇上……您带兵踩平了阿痕的国度，是杀死我母妃的魔王……可是，今天晚上火这么烈……阿痕只认得皇上……求陛下，不要把明痕一个人扔在大火里……”",
+      narration: "他只有十五岁，抱着亡国香绢蜷缩踏角，眼含着对您杀家亡母的深恨、却又不得不依附您这唯一天子舆驾的鹿儿般的恐惧。在漫天战火中，他哭战着依入您怀。"
+    }
+  ];
 
   const traits = [
     {
@@ -352,6 +420,64 @@ export default function Backstory({ onComplete }: BackstoryProps) {
                   ))
                 )}
               </div>
+
+              {!loading && (
+                <div className="border border-[#c4a052]/20 p-4 bg-black/40 rounded-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#c4a052] text-xs font-mono tracking-widest flex items-center gap-1.5">
+                      <Sparkle className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                      大内前尘 · 八大老角色登基前夜羁绊回忆 (点击唤醒)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 md:grid-cols-8 gap-1">
+                    {OLD_CHARACTERS_MEMORIES.map((m) => (
+                      <button
+                        type="button"
+                        key={m.id}
+                        onClick={() => setActiveMemoryCharId(m.id === activeMemoryCharId ? null : m.id)}
+                        className={`px-1 py-1.5 text-[10px] md:text-xs font-serif rounded-sm border transition duration-200 cursor-pointer ${
+                          activeMemoryCharId === m.id
+                            ? "bg-[#5c1a1a]/40 border-[#c4a052] text-amber-200"
+                            : "bg-black/80 border-[#c4a052]/20 hover:border-[#c4a052]/60 text-[#e0d7cc]/75"
+                        }`}
+                      >
+                        {m.name}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <AnimatePresence mode="wait">
+                    {activeMemoryCharId && (
+                      (() => {
+                        const selectedMem = OLD_CHARACTERS_MEMORIES.find((m) => m.id === activeMemoryCharId);
+                        if (!selectedMem) return null;
+                        return (
+                          <motion.div
+                            key={selectedMem.id}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="p-3 bg-black/90 border-l-2 border-[#c4a052] rounded-r space-y-2 text-left"
+                          >
+                            <div className="flex justify-between items-center text-[11px] border-b border-[#c4a052]/10 pb-1">
+                              <span className="font-bold text-[#c4a052] tracking-wider font-serif">
+                                【{selectedMem.role}】{selectedMem.name} —— {selectedMem.scene}
+                              </span>
+                            </div>
+                            <p className="text-amber-100/90 italic leading-relaxed text-xs font-serif">
+                              {selectedMem.dialogue}
+                            </p>
+                            <p className="text-[#e0d7cc]/70 text-[10px] md:text-xs leading-relaxed font-sans">
+                              {selectedMem.narration}
+                            </p>
+                          </motion.div>
+                        );
+                      })()
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {!loading && (
                 <div className="pt-2 text-center space-y-4">

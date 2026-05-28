@@ -26,7 +26,15 @@ export const INITIAL_CHARACTERS: Character[] = [
     intelligence: 85,
     pregnantProgress: 0,
     isPregnant: false,
-    relationshipHistory: ["潜邸时期：暗中护卫数载。", "登基大典：带领羽林卫肃清大皇子叛党，浴血拼下皇位。"]
+    relationshipHistory: ["潜邸时期：暗中护卫数载。", "登基大典：带领羽林卫肃清大皇子叛党，浴血拼下皇位。"],
+    avatar: "/assets/input_file_8.png",
+    portraits: {
+      default: "/assets/input_file_8.png",
+      summon: "/assets/input_file_10.png",
+      chat: "/assets/input_file_9.png",
+      gift: "/assets/input_file_8.png",
+      promote: "/assets/input_file_11.png"
+    }
   },
   {
     id: "ganyanxu",
@@ -106,7 +114,15 @@ export const INITIAL_CHARACTERS: Character[] = [
     intelligence: 82,
     pregnantProgress: 0,
     isPregnant: false,
-    relationshipHistory: ["潜邸格格：在冷僻小院中度过寂静五年。", "新皇登基：以一炉‘龙涎安神香’拂拭御前焦躁，帝不忍落，封为常在。"]
+    relationshipHistory: ["潜邸格格：在冷僻小院中度过寂静五年。", "新皇登基：以一炉‘龙涎安神香’拂拭御前焦躁，帝不忍落，封为常在。"],
+    avatar: "/assets/input_file_1.png",
+    portraits: {
+      default: "/assets/input_file_1.png",
+      summon: "/assets/input_file_5.png",
+      chat: "/assets/input_file_1.png",
+      gift: "/assets/input_file_6.png",
+      promote: "/assets/input_file_0.png"
+    }
   },
   {
     id: "xieyanhui",

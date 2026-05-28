@@ -13,6 +13,17 @@ export interface Character {
   pregnantProgress: number; // 0 to 10. (At 10, gives birth)
   isPregnant: boolean;
   relationshipHistory: string[];
+  customTitle?: string; // Optional custom noble title (封号)
+  avatar?: string; // Optional character profile portrait
+  isColdPalace?: boolean; // True if cast into cold palace (冷宫)
+  portraits?: {
+    default?: string;
+    summon?: string;
+    chat?: string;
+    gift?: string;
+    promote?: string;
+    [key: string]: string | undefined;
+  };
 }
 
 export interface Child {
